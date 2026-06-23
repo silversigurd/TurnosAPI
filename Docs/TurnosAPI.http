@@ -1,0 +1,297 @@
+### TurnosAPI — Colección de ejemplos HTTP
+### Requiere la extensión "REST Client" para VS Code, o úsalo como referencia para Postman/Swagger.
+###
+### IMPORTANTE: Verificá el puerto en TurnosAPI\Properties\launchSettings.json
+### y actualizá @baseUrl si es diferente al configurado.
+### Puerto por defecto con IIS Express: 54321
+### Puerto con Kestrel (perfil "http"): 5000
+###
+### ORDEN DE EJECUCIÓN RECOMENDADO PARA LA DEMO:
+###   1. Crear un profesional (POST /profesionales)
+###   2. Crear un cliente (POST /clientes)
+###   3. Crear un turno válido
+###   4. Intentar crear un turno superpuesto → ver el 409
+###   5. Listar turnos del cliente
+###   6. Cancelar un turno
+###   7. Buscar próximo disponible
+
+@baseUrl = http://localhost:54321
+
+# ================================================================
+# CLIENTES
+# ================================================================
+
+### [1] Listar todos los clientes
+GET {{baseUrl}}/api/clientes
+Accept: application/json
+
+###
+
+### [2] Obtener cliente por ID
+GET {{baseUrl}}/api/clientes/1
+Accept: application/json
+
+###
+
+### [3] Crear cliente — Resultado esperado: 201 Created
+POST {{baseUrl}}/api/clientes
+Content-Type: application/json
+
+{
+  "nombre": "Juan Pérez",
+  "telefono": "011-4567-8901",
+  "email": "juan.perez@example.com"
+}
+
+###
+
+### [4] Crear segundo cliente (para diversificar ejemplos)
+POST {{baseUrl}}/api/clientes
+Content-Type: application/json
+
+{
+  "nombre": "María González",
+  "telefono": "011-5555-1234",
+  "email": "maria.gonzalez@example.com"
+}
+
+###
+
+### [5] Actualizar cliente — Resultado esperado: 200 OK
+PUT {{baseUrl}}/api/clientes/1
+Content-Type: application/json
+
+{
+  "nombre": "Juan Pérez (Actualizado)",
+  "telefono": "011-9999-8888",
+  "email": "juan.updated@example.com"
+}
+
+###
+
+### [6] Eliminar cliente — Resultado esperado: 204 No Content
+###     (Fallará con error 500 si tiene turnos asociados — FK Restrict)
+DELETE {{baseUrl}}/api/clientes/99
+
+###
+
+### [7] ⚠️ Crear cliente con email inválido — Resultado esperado: 400 Bad Request
+POST {{baseUrl}}/api/clientes
+Content-Type: application/json
+
+{
+  "nombre": "Test Inválido",
+  "email": "esto-no-es-un-email"
+}
+
+###
+
+# ================================================================
+# PROFESIONALES
+# ================================================================
+
+### [8] Listar todos los profesionales
+GET {{baseUrl}}/api/profesionales
+Accept: application/json
+
+###
+
+### [9] Crear profesional — Resultado esperado: 201 Created
+POST {{baseUrl}}/api/profesionales
+Content-Type: application/json
+
+{
+  "nombre": "Dra. Laura Gómez",
+  "especialidad": "Clínica General"
+}
+
+###
+
+### [10] Crear segundo profesional
+POST {{baseUrl}}/api/profesionales
+Content-Type: application/json
+
+{
+  "nombre": "Dr. Carlos Ruiz",
+  "especialidad": "Traumatología"
+}
+
+###
+
+### [11] Obtener profesional por ID
+GET {{baseUrl}}/api/profesionales/1
+Accept: application/json
+
+###
+
+### [12] Actualizar profesional
+PUT {{baseUrl}}/api/profesionales/1
+Content-Type: application/json
+
+{
+  "nombre": "Dra. Laura Gómez",
+  "especialidad": "Medicina Interna"
+}
+
+###
+
+# ================================================================
+# TURNOS — Casos de éxito
+# ================================================================
+
+### [13] Crear turno válido — Resultado esperado: 201 Created
+###      AJUSTAR las fechas a futuro si es necesario
+POST {{baseUrl}}/api/turnos
+Content-Type: application/json
+
+{
+  "clienteId": 1,
+  "profesionalId": 1,
+  "fechaHoraInicio": "2026-09-15T09:00:00",
+  "fechaHoraFin":   "2026-09-15T09:30:00"
+}
+
+###
+
+### [14] Crear segundo turno válido (mismo profesional, horario diferente)
+POST {{baseUrl}}/api/turnos
+Content-Type: application/json
+
+{
+  "clienteId": 2,
+  "profesionalId": 1,
+  "fechaHoraInicio": "2026-09-15T10:00:00",
+  "fechaHoraFin":   "2026-09-15T10:45:00"
+}
+
+###
+
+### [15] Crear turno para el segundo profesional (no conflicta con el primero)
+POST {{baseUrl}}/api/turnos
+Content-Type: application/json
+
+{
+  "clienteId": 1,
+  "profesionalId": 2,
+  "fechaHoraInicio": "2026-09-15T09:00:00",
+  "fechaHoraFin":   "2026-09-15T09:30:00"
+}
+
+###
+
+# ================================================================
+# TURNOS — Casos de error (intencionalmente)
+# ================================================================
+
+### [16] ⚠️ SUPERPOSICIÓN INTENCIONAL — Resultado esperado: 409 Conflict
+###      Este turno se superpone con el turno [13] (09:00-09:30) del profesional 1
+###      Rango solapado: 09:15-09:45 cruza con 09:00-09:30
+POST {{baseUrl}}/api/turnos
+Content-Type: application/json
+
+{
+  "clienteId": 2,
+  "profesionalId": 1,
+  "fechaHoraInicio": "2026-09-15T09:15:00",
+  "fechaHoraFin":   "2026-09-15T09:45:00"
+}
+
+###
+
+### [17] ⚠️ TURNO EN EL PASADO — Resultado esperado: 400 Bad Request
+POST {{baseUrl}}/api/turnos
+Content-Type: application/json
+
+{
+  "clienteId": 1,
+  "profesionalId": 1,
+  "fechaHoraInicio": "2020-01-15T09:00:00",
+  "fechaHoraFin":   "2020-01-15T09:30:00"
+}
+
+###
+
+### [18] ⚠️ FECHAS INCOHERENTES (fin antes que inicio) — Resultado esperado: 400 Bad Request
+POST {{baseUrl}}/api/turnos
+Content-Type: application/json
+
+{
+  "clienteId": 1,
+  "profesionalId": 1,
+  "fechaHoraInicio": "2026-09-15T10:00:00",
+  "fechaHoraFin":   "2026-09-15T09:00:00"
+}
+
+###
+
+### [19] ⚠️ CLIENTE INEXISTENTE — Resultado esperado: 404 Not Found
+POST {{baseUrl}}/api/turnos
+Content-Type: application/json
+
+{
+  "clienteId": 9999,
+  "profesionalId": 1,
+  "fechaHoraInicio": "2026-09-20T09:00:00",
+  "fechaHoraFin":   "2026-09-20T09:30:00"
+}
+
+###
+
+# ================================================================
+# TURNOS — Consultas y operaciones
+# ================================================================
+
+### [20] Listar turnos de un cliente (usa sp_TurnosPorCliente)
+###      Resultado esperado: array con NombreProfesional incluido (JOIN)
+GET {{baseUrl}}/api/turnos/cliente/1
+Accept: application/json
+
+###
+
+### [21] Cancelar turno (soft delete) — Resultado esperado: 200 OK, Estado = "Cancelado"
+PUT {{baseUrl}}/api/turnos/1/cancelar
+
+###
+
+### [22] ⚠️ Cancelar turno ya cancelado — Resultado esperado: 400 Bad Request
+PUT {{baseUrl}}/api/turnos/1/cancelar
+
+###
+
+### [23] ⚠️ Cancelar turno inexistente — Resultado esperado: 404 Not Found
+PUT {{baseUrl}}/api/turnos/9999/cancelar
+
+###
+
+# ================================================================
+# PRÓXIMO TURNO DISPONIBLE (usa sp_ProximoTurnoDisponible)
+# ================================================================
+
+### [24] Buscar próximo disponible desde ahora — 30 minutos
+###      Resultado esperado: slot libre encontrado después de los turnos existentes
+GET {{baseUrl}}/api/turnos/proximo-disponible?profesionalId=1&duracionMinutos=30
+Accept: application/json
+
+###
+
+### [25] Buscar próximo disponible desde una fecha específica — 60 minutos
+GET {{baseUrl}}/api/turnos/proximo-disponible?profesionalId=1&duracionMinutos=60&fechaDesde=2026-09-15T08:00:00
+Accept: application/json
+
+###
+
+### [26] Buscar próximo disponible para el segundo profesional
+GET {{baseUrl}}/api/turnos/proximo-disponible?profesionalId=2&duracionMinutos=45
+Accept: application/json
+
+###
+
+### [27] ⚠️ Profesional inexistente — Resultado esperado: 404 Not Found
+GET {{baseUrl}}/api/turnos/proximo-disponible?profesionalId=9999&duracionMinutos=30
+Accept: application/json
+
+###
+
+### [28] ⚠️ Duración inválida (0 minutos) — Resultado esperado: 400 Bad Request
+GET {{baseUrl}}/api/turnos/proximo-disponible?profesionalId=1&duracionMinutos=0
+Accept: application/json

@@ -1,0 +1,25 @@
+# Build output
+bin/
+obj/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Logs y temporales
+*.log
+*.tmp
+
+# Publicación
+publish/
+**/publish/
+
+# Secretos locales (nunca subir al repo)
+**/appsettings.Local.json
+**/appsettings.*.Local.json
+
+# macOS
+.DS_Store
